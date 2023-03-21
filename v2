@@ -1,102 +1,99 @@
 import os
 import hashlib
 import shutil
-from tkinter import Tk, filedialog, messagebox
+import tkinter as tk
+from tkinter import filedialog
+from tkinter import messagebox
+import threading
 
-def find_duplicate_files(folder_path):
-    '''Finds duplicate files in a given folder and its subfolders'''
+# Function to calculate the hash of a file
+def file_hash(filepath):
+    with open(filepath, 'rb') as f:
+        hasher = hashlib.md5()
+        buf = f.read(65536)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = f.read(65536)
+        return hasher.hexdigest()
+
+# Function to find duplicate videos in a directory and its subdirectories
+def find_duplicate_videos(directory, queue):
+    video_extensions = ['.mp4', '.mkv', '.avi', '.mov', '.flv', '.wmv', '.webm']
     hashes = {}
     duplicates = []
+    for root, dirs, files in os.walk(directory):
+        for filename in files:
+            if os.path.splitext(filename)[1].lower() in video_extensions:
+                filepath = os.path.join(root, filename)
+                file_hash_value = file_hash(filepath)
+                if file_hash_value in hashes:
+                    duplicates.append((filepath, hashes[file_hash_value]))
+                else:
+                    hashes[file_hash_value] = filepath
+    queue.put(duplicates)
 
-    # Traverse the folder and its subfolders
-    for dirpath, dirnames, filenames in os.walk(folder_path):
-        for filename in filenames:
-            file_path = os.path.join(dirpath, filename)
-            # Only consider video and audio files
-            if not (filename.lower().endswith('.mp3') or 
-                    filename.lower().endswith('.mp4') or 
-                    filename.lower().endswith('.avi') or 
-                    filename.lower().endswith('.mkv') or 
-                    filename.lower().endswith('.mov') or 
-                    filename.lower().endswith('.wmv') or 
-                    filename.lower().endswith('.flv') or 
-                    filename.lower().endswith('.wav')):
-                continue
+# Function to delete a file
+def delete_file(filepath):
+    try:
+        os.remove(filepath)
+        return True
+    except:
+        return False
 
-            # Calculate the MD5 hash of the file
-            with open(file_path, 'rb') as f:
-                file_hash = hashlib.md5(f.read()).hexdigest()
+# Function to move a file to another directory
+def move_file(filepath, target_dir):
+    try:
+        shutil.move(filepath, target_dir)
+        return True
+    except:
+        return False
 
-            # If the hash already exists, the file is a duplicate
-            if file_hash in hashes:
-                duplicates.append(file_path)
-                continue
-
-            # Otherwise, store the hash and file path for future comparisons
-            hashes[file_hash] = file_path
-
-    return duplicates
-
-def delete_files(file_paths):
-    '''Deletes a list of files'''
-    for file_path in file_paths:
-        os.remove(file_path)
-
-def move_files(file_paths, dest_folder):
-    '''Moves a list of files to a destination folder'''
-    for file_path in file_paths:
-        shutil.move(file_path, dest_folder)
-
-def select_folder():
-    '''Opens a file dialog to select a folder'''
-    root = Tk()
-    root.withdraw()
-    folder_path = filedialog.askdirectory()
-    root.destroy()
-    return folder_path
-
-def select_dest_folder():
-    '''Opens a file dialog to select a destination folder'''
-    root = Tk()
-    root.withdraw()
-    dest_folder = filedialog.askdirectory()
-    root.destroy()
-    return dest_folder
-
-def main():
-    '''Main function'''
-    # Prompt the user to select a folder
-    folder_path = select_folder()
-
-    if not folder_path:
-        return
-
-    # Find duplicate files in the selected folder
-    duplicates = find_duplicate_files(folder_path)
-
-    if not duplicates:
-        # If no duplicates are found, inform the user and exit
-        messagebox.showinfo('No duplicates found', 'No duplicate video or audio files found.')
-        return
-
-    # Otherwise, display a message box showing the list of files to be deleted/moved
-    message = 'The following files will be deleted/moved:\n\n'
-    for file_path in duplicates:
-        message += f'{file_path}\n'
-    message += '\nDo you want to delete or move these files?'
-
-    # Ask the user to choose between deleting or moving the files
-    user_choice = messagebox.askquestion('Delete or Move duplicates', message)
-
-    if user_choice == 'yes':
-        # If the user chooses to delete the files, delete them
-        delete_files(duplicates)
-        messagebox.showinfo('Duplicates deleted', f'{len(duplicates)} files deleted.')
+# Function to display a message box with the list of duplicate videos and the option to delete or move them
+def show_duplicates(duplicates):
+    if len(duplicates) == 0:
+        messagebox.showinfo('Duplicate Videos', 'No duplicate videos found.')
     else:
-        # If the user chooses to move the files, prompt for the destination folder and move the files
-        dest_folder = select_dest_folder()
-        if not dest_folder:
-            return
+        message = 'The following duplicate videos were found:\n\n'
+        for pair in duplicates:
+            message += pair[0] + '\n' + pair[1] + '\n\n'
+        message += 'Do you want to delete or move them to another folder?'
+        result = messagebox.askyesnocancel('Duplicate Videos', message)
+        if result == True: # Delete the duplicate videos
+            for pair in duplicates:
+                if delete_file(pair[0]):
+                    messagebox.showinfo('Duplicate Videos', 'Deleted: ' + pair[0])
+                else:
+                    messagebox.showerror('Duplicate Videos', 'Failed to delete: ' + pair[0])
+        elif result == False: # Move the duplicate videos
+            target_dir = filedialog.askdirectory()
+            if target_dir:
+                for pair in duplicates:
+                    if move_file(pair[0], target_dir):
+                        messagebox.showinfo('Duplicate Videos', 'Moved: ' + pair[0])
+                    else:
+                        messagebox.showerror('Duplicate Videos', 'Failed to move: ' + pair[0])
 
-        move_files(duplicates, dest_folder)
-        messagebox.showinfo('Duplicates moved', f'{len
+# Function to select a directory using a file dialog
+def select_directory():
+    directory = filedialog.askdirectory()
+    if directory:
+        duplicates = []
+        queue = queue = queue.Queue()
+        t = threading.Thread(target=find_duplicate_videos, args=(directory, queue))
+        t.start()
+        while t.is_alive():
+            root.update()
+        duplicates = queue.get()
+        show_duplicates(duplicates)
+
+# Create the GUI
+root = tk.Tk()
+root.title('Duplicate Video Finder')
+root.geometry('400x200')
+
+# Create the directory selection button
+button = tk.Button(root, text='Select Directory', command=select_directory)
+button.pack(pady=20)
+
+# Start the GUI event loop
+root.mainloop()
