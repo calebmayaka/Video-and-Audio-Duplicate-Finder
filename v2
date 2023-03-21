@@ -16,7 +16,11 @@ def find_duplicate_files(folder_path):
             if not (filename.lower().endswith('.mp3') or 
                     filename.lower().endswith('.mp4') or 
                     filename.lower().endswith('.avi') or 
-                    filename.lower().endswith('.mkv')):
+                    filename.lower().endswith('.mkv') or 
+                    filename.lower().endswith('.mov') or 
+                    filename.lower().endswith('.wmv') or 
+                    filename.lower().endswith('.flv') or 
+                    filename.lower().endswith('.wav')):
                 continue
 
             # Calculate the MD5 hash of the file
@@ -95,7 +99,4 @@ def main():
             return
 
         move_files(duplicates, dest_folder)
-        messagebox.showinfo('Duplicates moved', f'{len(duplicates)} files moved to {dest_folder}.')
-
-if __name__ == '__main__':
-    main()
+        messagebox.showinfo('Duplicates moved', f'{len
