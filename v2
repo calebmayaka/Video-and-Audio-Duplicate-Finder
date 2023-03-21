@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import threading
+import queue
 
 # Function to calculate the hash of a file
 def file_hash(filepath):
@@ -78,12 +79,12 @@ def select_directory():
     directory = filedialog.askdirectory()
     if directory:
         duplicates = []
-        queue = queue = queue.Queue()
-        t = threading.Thread(target=find_duplicate_videos, args=(directory, queue))
+        q = queue.Queue()
+        t = threading.Thread(target=find_duplicate_videos, args=(directory, q))
         t.start()
         while t.is_alive():
             root.update()
-        duplicates = queue.get()
+        duplicates = q.get()
         show_duplicates(duplicates)
 
 # Create the GUI
