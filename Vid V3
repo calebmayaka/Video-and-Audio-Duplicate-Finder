@@ -1,0 +1,71 @@
+import os
+import hashlib
+from tkinter import Tk
+from tkinter.filedialog import askdirectory
+
+def get_file_hash(file_path):
+    """
+    Calculates the hash of a file using SHA-1 algorithm.
+    """
+    hash_sha1 = hashlib.sha1()
+    with open(file_path, "rb") as file:
+        chunk = 0
+        while chunk != b"":
+            chunk = file.read(1024)
+            hash_sha1.update(chunk)
+    return hash_sha1.hexdigest()
+
+def find_duplicate_files(directory):
+    """
+    Finds duplicate files in the given directory and its subdirectories.
+    """
+    file_hash_dict = {}
+    for root, _, files in os.walk(directory):
+        for file_name in files:
+            file_path = os.path.join(root, file_name)
+            file_hash = get_file_hash(file_path)
+            if file_hash in file_hash_dict:
+                file_hash_dict[file_hash].append(file_path)
+            else:
+                file_hash_dict[file_hash] = [file_path]
+    return file_hash_dict
+
+def move_files(file_list, destination_folder):
+    """
+    Moves the files in the given list to the destination folder.
+    """
+    for file_path in file_list:
+        file_name = os.path.basename(file_path)
+        new_file_path = os.path.join(destination_folder, file_name)
+        os.rename(file_path, new_file_path)
+
+if __name__ == "__main__":
+    # Ask the user to select a directory
+    Tk().withdraw()
+    directory = askdirectory()
+
+    # Find duplicate video files
+    duplicate_files_dict = {}
+    video_extensions = [".mp4", ".avi", ".mkv", ".flv", ".wmv", ".mov", ".webm", ".mpeg", ".mpg"]
+    for file_hash, file_list in find_duplicate_files(directory).items():
+        video_files = [file_path for file_path in file_list if os.path.splitext(file_path)[1] in video_extensions]
+        if len(video_files) > 1:
+            duplicate_files_dict[file_hash] = video_files
+
+    # Display duplicate files and ask for confirmation to delete or move them
+    for file_list in duplicate_files_dict.values():
+        print("Duplicate files:\n")
+        for file_path in file_list:
+            print(file_path)
+        print("\n")
+        user_input = input("Do you want to delete (d) or move (m) these files? (d/m): ")
+        if user_input.lower() == "d":
+            for file_path in file_list:
+                os.remove(file_path)
+            print("Files deleted.")
+        elif user_input.lower() == "m":
+            destination_folder = askdirectory()
+            move_files(file_list, destination_folder)
+            print("Files moved.")
+        else:
+            print("Invalid input. Files not deleted or moved.")
