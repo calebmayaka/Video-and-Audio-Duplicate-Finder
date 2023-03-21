@@ -31,13 +31,5 @@ Click the "Select Directory" button to choose a directory to search for duplicat
 
 After the search is complete, a message box will appear with a list of duplicate video files that were found. You can choose to delete the duplicate files or move them to another directory.
 
-Screenshots
-Screenshot 1
-
-Screenshot 2
-
-License
-This program is licensed under the MIT License. See the LICENSE file for details.
-
 Credits
-The program was created by MayakaOmbogo
+Caleb Mayaka
